@@ -1,0 +1,186 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import {
+  Container,
+  Title,
+  Card,
+  Text,
+  Badge,
+  Stack,
+  Group,
+  LoadingOverlay,
+  Anchor,
+  Breadcrumbs,
+  Grid,
+  Image,
+} from '@mantine/core'
+
+interface Game {
+  title: string
+  manufacturer: string
+  console: string
+}
+
+interface GameWithThumbnail extends Game {
+  thumbnail?: string | null
+}
+
+function ManufacturerPlatformGames() {
+  const { name, platform } = useParams<{ name: string; platform: string }>()
+  const navigate = useNavigate()
+  const [data, setData] = useState<{
+    manufacturer: string
+    platform: string
+    games: GameWithThumbnail[]
+    total: number
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [thumbnails, setThumbnails] = useState<{ [key: string]: string | null }>({})
+
+  useEffect(() => {
+    if (name && platform) {
+      fetchGames(name, platform)
+    }
+  }, [name, platform])
+
+  const fetchGames = async (mfrName: string, platformName: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/manufacturer/${mfrName}/${platformName}`)
+      const data = await response.json()
+      setData(data)
+      
+      // Fetch thumbnails for all games
+      const thumbnailPromises = data.games.map(async (game: Game) => {
+        try {
+          const thumbResponse = await fetch(
+            `http://localhost:8000/games/${encodeURIComponent(game.title)}/thumbnail?console=${encodeURIComponent(game.console)}`
+          )
+          const thumbData = await thumbResponse.json()
+          return { title: game.title, thumbnail: thumbData.thumbnail }
+        } catch (error) {
+          return { title: game.title, thumbnail: null }
+        }
+      })
+      
+      const thumbResults = await Promise.all(thumbnailPromises)
+      const thumbMap: { [key: string]: string | null } = {}
+      thumbResults.forEach((result) => {
+        thumbMap[result.title] = result.thumbnail
+      })
+      setThumbnails(thumbMap)
+      
+      setLoading(false)
+    } catch (error) {
+      console.error('Error fetching platform games:', error)
+      setLoading(false)
+    }
+  }
+
+  const getColorForManufacturer = (mfrName: string): string => {
+    const colors: { [key: string]: string } = {
+      Nintendo: 'red',
+      Sony: 'blue',
+      Sega: 'teal',
+      Microsoft: 'green',
+      SNK: 'orange',
+      NEC: 'purple',
+      PC: 'grape',
+      Commodore: 'cyan',
+      Sinclair: 'yellow',
+      'Pico-8': 'pink',
+    }
+    return colors[mfrName] || 'gray'
+  }
+
+  if (loading) {
+    return (
+      <Container>
+        <LoadingOverlay visible={loading} />
+      </Container>
+    )
+  }
+
+  if (!data) {
+    return (
+      <Container>
+        <Title order={2}>Játékok nem találhatók</Title>
+      </Container>
+    )
+  }
+
+  const items = [
+    { title: 'Gyártók', href: '/manufacturers' },
+    { title: data.manufacturer, href: `/manufacturer/${data.manufacturer}` },
+    { title: data.platform, href: '#' },
+  ].map((item, index) => (
+    <Anchor key={index} onClick={() => navigate(item.href)}>
+      {item.title}
+    </Anchor>
+  ))
+
+  return (
+    <Container>
+      <Breadcrumbs mb="lg">{items}</Breadcrumbs>
+
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Title order={1} mb="xs">
+            {data.manufacturer} - {data.platform}
+          </Title>
+          <Text c="dimmed">ABC sorrendben</Text>
+        </div>
+        <Badge variant="light" color={getColorForManufacturer(data.manufacturer)} size="lg">
+          {data.total} játék
+        </Badge>
+      </Group>
+
+      <div style={{ position: 'relative' }}>
+        <LoadingOverlay visible={loading} />
+        <Grid gutter="md">
+          {data.games.map((game, index) => (
+            <Grid.Col key={index} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
+              <Anchor
+                onClick={() => navigate(`/game/${encodeURIComponent(game.title)}`)}
+                underline="never"
+              >
+                <Card
+                  shadow="sm"
+                  padding="lg"
+                  radius="md"
+                  withBorder
+                  style={{ height: '100%', cursor: 'pointer' }}
+                  className="game-card"
+                >
+                  <Card.Section>
+                    <Image
+                      src={
+                        thumbnails[game.title] 
+                          ? `http://localhost:8000${thumbnails[game.title]}` 
+                          : `https://via.placeholder.com/400x300?text=${encodeURIComponent(game.title)}`
+                      }
+                      height={160}
+                      alt={game.title}
+                      fallbackSrc="https://via.placeholder.com/400x300"
+                    />
+                  </Card.Section>
+
+                  <Stack gap="xs" mt="md">
+                    <Text fw={600} size="sm" lineClamp={2}>
+                      {game.title}
+                    </Text>
+                    <Badge variant="light" color={getColorForManufacturer(data.manufacturer)} size="sm">
+                      {game.console}
+                    </Badge>
+                  </Stack>
+                </Card>
+              </Anchor>
+            </Grid.Col>
+          ))}
+        </Grid>
+      </div>
+    </Container>
+  )
+}
+
+export default ManufacturerPlatformGames
+
