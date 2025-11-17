@@ -16,6 +16,7 @@ interface Game {
   title: string
   manufacturer: string
   console: string
+  type?: string  // "trivial" or "hidden_gem"
 }
 
 function Games() {
@@ -108,6 +109,17 @@ function Games() {
           {game.console}
         </Badge>
       </Table.Td>
+      <Table.Td>
+        {game.type === "trivial" ? (
+          <Badge variant="filled" color="blue" size="sm">
+            Triviális
+          </Badge>
+        ) : (
+          <Badge variant="filled" color="violet" size="sm">
+            Hidden Gem
+          </Badge>
+        )}
+      </Table.Td>
     </Table.Tr>
   ))
 
@@ -155,6 +167,7 @@ function Games() {
                 <Table.Th>Cím</Table.Th>
                 <Table.Th>Gyártó</Table.Th>
                 <Table.Th>Konzol</Table.Th>
+                <Table.Th>Típus</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>{rows}</Table.Tbody>

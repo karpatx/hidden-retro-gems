@@ -22,6 +22,7 @@ interface Game {
   title: string
   manufacturer: string
   console: string
+  type?: string  // "trivial" or "hidden_gem"
 }
 
 interface GameDetails {
@@ -168,14 +169,25 @@ function GameDetail() {
                 <Badge variant="light" color="blue" size="lg">
                   {game.console}
                 </Badge>
+                {game.type === "trivial" ? (
+                  <Badge variant="filled" color="blue" size="lg">
+                    Triviális
+                  </Badge>
+                ) : (
+                  <Badge variant="filled" color="violet" size="lg">
+                    Hidden Gem
+                  </Badge>
+                )}
               </Group>
             </div>
 
             <Divider />
 
             <div>
-              <Title order={3} mb="sm">Rövid leírás</Title>
-              <Text>{description}</Text>
+              <Title order={3} mb="sm">Leírás</Title>
+              <Text style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                {description}
+              </Text>
             </div>
 
             <div>

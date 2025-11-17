@@ -12,6 +12,7 @@ import {
   LoadingOverlay,
   Anchor,
   Breadcrumbs,
+  Image,
 } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 
@@ -38,6 +39,7 @@ function ManufacturerDetail() {
     }>
   } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [systemImages, setSystemImages] = useState<{ [key: string]: string | null }>({})
 
   useEffect(() => {
     if (name) {
@@ -50,6 +52,28 @@ function ManufacturerDetail() {
       const response = await fetch(`http://localhost:8000/manufacturer/${mfrName}`)
       const data = await response.json()
       setData(data)
+      
+      // Fetch system images for each platform
+      const platformNames = [...new Set(data.games.map((g: any) => g.console))]
+      const imagePromises = platformNames.map(async (platform: string) => {
+        try {
+          const imgResponse = await fetch(
+            `http://localhost:8000/systems/${encodeURIComponent(platform)}/image`
+          )
+          const imgData = await imgResponse.json()
+          return { platform, image: imgData.image }
+        } catch (error) {
+          return { platform, image: null }
+        }
+      })
+      
+      const imageResults = await Promise.all(imagePromises)
+      const imageMap: { [key: string]: string | null } = {}
+      imageResults.forEach((result) => {
+        imageMap[result.platform] = result.image
+      })
+      setSystemImages(imageMap)
+      
       setLoading(false)
     } catch (error) {
       console.error('Error fetching manufacturer detail:', error)
@@ -140,7 +164,19 @@ function ManufacturerDetail() {
                 style={{ height: '100%', cursor: 'pointer' }}
               >
                 <Stack gap="xs">
-                  <Group justify="space-between">
+                  {systemImages[platform.name] && (
+                    <Card.Section>
+                      <Image
+                        src={`http://localhost:8000${systemImages[platform.name]}`}
+                        height={120}
+                        alt={platform.name}
+                        fallbackSrc="https://via.placeholder.com/400x120"
+                        fit="contain"
+                      />
+                    </Card.Section>
+                  )}
+                  
+                  <Group justify="space-between" mt={systemImages[platform.name] ? "xs" : 0}>
                     <Text fw={700} size="lg">
                       {platform.name}
                     </Text>

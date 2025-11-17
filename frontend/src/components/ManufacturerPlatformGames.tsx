@@ -19,6 +19,7 @@ interface Game {
   title: string
   manufacturer: string
   console: string
+  type?: string  // "trivial" or "hidden_gem"
 }
 
 interface GameWithThumbnail extends Game {
@@ -36,6 +37,7 @@ function ManufacturerPlatformGames() {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [thumbnails, setThumbnails] = useState<{ [key: string]: string | null }>({})
+  const [systemImage, setSystemImage] = useState<string | null>(null)
 
   useEffect(() => {
     if (name && platform) {
@@ -48,6 +50,17 @@ function ManufacturerPlatformGames() {
       const response = await fetch(`http://localhost:8000/manufacturer/${mfrName}/${platformName}`)
       const data = await response.json()
       setData(data)
+      
+      // Fetch system image
+      try {
+        const systemImgResponse = await fetch(
+          `http://localhost:8000/systems/${encodeURIComponent(platformName)}/image`
+        )
+        const systemImgData = await systemImgResponse.json()
+        setSystemImage(systemImgData.image)
+      } catch (error) {
+        setSystemImage(null)
+      }
       
       // Fetch thumbnails for all games
       const thumbnailPromises = data.games.map(async (game: Game) => {
@@ -122,6 +135,18 @@ function ManufacturerPlatformGames() {
     <Container>
       <Breadcrumbs mb="lg">{items}</Breadcrumbs>
 
+      {systemImage && (
+        <Group justify="center" mb="lg">
+          <Image
+            src={`http://localhost:8000${systemImage}`}
+            height={200}
+            alt={data.platform}
+            fallbackSrc="https://via.placeholder.com/400x200"
+            fit="contain"
+          />
+        </Group>
+      )}
+
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={1} mb="xs">
@@ -168,9 +193,20 @@ function ManufacturerPlatformGames() {
                     <Text fw={600} size="sm" lineClamp={2}>
                       {game.title}
                     </Text>
-                    <Badge variant="light" color={getColorForManufacturer(data.manufacturer)} size="sm">
-                      {game.console}
-                    </Badge>
+                    <Group gap="xs">
+                      <Badge variant="light" color={getColorForManufacturer(data.manufacturer)} size="sm">
+                        {game.console}
+                      </Badge>
+                      {game.type === "trivial" ? (
+                        <Badge variant="filled" color="blue" size="sm">
+                          Triviális
+                        </Badge>
+                      ) : (
+                        <Badge variant="filled" color="violet" size="sm">
+                          Hidden Gem
+                        </Badge>
+                      )}
+                    </Group>
                   </Stack>
                 </Card>
               </Anchor>

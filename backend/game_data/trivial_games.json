@@ -1,0 +1,241 @@
+{
+  "Nintendo": {
+    "NES": [
+      "Super Mario Bros",
+      "Super Mario Bros 2",
+      "Super Mario Bros 3",
+      "The Legend of Zelda",
+      "Zelda",
+      "Metroid",
+      "Donkey Kong",
+      "Donkey Kong Country",
+      "Kirby",
+      "Kirby's Adventure",
+      "Mario",
+      "Mario Bros",
+      "Mario Games"
+    ],
+    "SNES": [
+      "Super Mario World",
+      "Super Mario All-Stars",
+      "The Legend of Zelda: A Link to the Past",
+      "Donkey Kong Country",
+      "Donkey Kong Country 2",
+      "Donkey Kong Country 3",
+      "Super Metroid",
+      "Kirby Super Star",
+      "Kirby's Dream Course",
+      "Kirby's Dream Land 3",
+      "Kirby's Avalanche",
+      "Mario Paint",
+      "Mario Kart",
+      "Super Mario Kart"
+    ],
+    "N64": [
+      "Super Mario 64",
+      "The Legend of Zelda: Ocarina of Time",
+      "The Legend of Zelda: Majora's Mask",
+      "Mario Kart 64",
+      "Donkey Kong 64",
+      "Kirby 64"
+    ],
+    "Gamecube": [
+      "Super Mario Sunshine",
+      "The Legend of Zelda: The Wind Waker",
+      "Mario Kart: Double Dash",
+      "Super Smash Bros. Melee",
+      "Metroid Prime",
+      "Kirby Air Ride"
+    ],
+    "Wii": [
+      "Super Mario Galaxy",
+      "Super Mario Galaxy 2",
+      "The Legend of Zelda: Twilight Princess",
+      "Mario Kart Wii",
+      "Super Smash Bros. Brawl",
+      "Donkey Kong Country Returns",
+      "Metroid Prime 3"
+    ],
+    "Wii U": [
+      "Super Mario 3D World",
+      "Mario Kart 8",
+      "The Legend of Zelda: Breath of the Wild",
+      "Super Smash Bros. for Wii U"
+    ],
+    "Switch": [
+      "Super Mario Odyssey",
+      "The Legend of Zelda: Breath of the Wild",
+      "Mario Kart 8 Deluxe",
+      "Super Smash Bros. Ultimate",
+      "Animal Crossing: New Horizons",
+      "Pokémon",
+      "Pokemon"
+    ],
+    "Gameboy": [
+      "Super Mario Land",
+      "Super Mario Land 2",
+      "The Legend of Zelda: Link's Awakening",
+      "Pokémon Red",
+      "Pokémon Blue",
+      "Pokémon Yellow",
+      "Donkey Kong",
+      "Kirby's Dream Land",
+      "Metroid II"
+    ],
+    "GBA": [
+      "Super Mario Advance",
+      "The Legend of Zelda: The Minish Cap",
+      "Pokémon Ruby",
+      "Pokémon Sapphire",
+      "Pokémon Emerald",
+      "Mario Kart: Super Circuit",
+      "Kirby: Nightmare in Dream Land",
+      "Metroid Fusion",
+      "Metroid Zero Mission"
+    ],
+    "DS": [
+      "New Super Mario Bros",
+      "Mario Kart DS",
+      "The Legend of Zelda: Phantom Hourglass",
+      "Pokémon Diamond",
+      "Pokémon Pearl",
+      "Pokémon Platinum",
+      "Super Mario 64 DS",
+      "Kirby Super Star Ultra"
+    ],
+    "3DS": [
+      "Super Mario 3D Land",
+      "Mario Kart 7",
+      "The Legend of Zelda: A Link Between Worlds",
+      "Pokémon X",
+      "Pokémon Y",
+      "Pokémon Sun",
+      "Pokémon Moon",
+      "Super Smash Bros. for 3DS",
+      "Kirby: Planet Robobot",
+      "Metroid: Samus Returns"
+    ]
+  },
+  "Sony": {
+    "PS1": [
+      "Crash Bandicoot",
+      "Spyro the Dragon",
+      "Gran Turismo",
+      "Final Fantasy VII",
+      "Final Fantasy VIII",
+      "Final Fantasy IX",
+      "Metal Gear Solid",
+      "Tekken",
+      "Tomb Raider",
+      "Resident Evil"
+    ],
+    "PS2": [
+      "God of War",
+      "Gran Turismo 3",
+      "Gran Turismo 4",
+      "Final Fantasy X",
+      "Final Fantasy XII",
+      "Metal Gear Solid 2",
+      "Metal Gear Solid 3",
+      "Tekken 4",
+      "Tekken 5",
+      "Ratchet & Clank",
+      "Jak and Daxter",
+      "Sly Cooper",
+      "Kingdom Hearts",
+      "Resident Evil 4"
+    ],
+    "PS3": [
+      "God of War III",
+      "Uncharted",
+      "Uncharted 2",
+      "Uncharted 3",
+      "The Last of Us",
+      "Gran Turismo 5",
+      "Gran Turismo 6",
+      "Metal Gear Solid 4",
+      "LittleBigPlanet",
+      "Killzone",
+      "Infamous"
+    ],
+    "PSP": [
+      "God of War: Chains of Olympus",
+      "God of War: Ghost of Sparta",
+      "Gran Turismo",
+      "Metal Gear Solid: Peace Walker",
+      "Ratchet & Clank: Size Matters"
+    ],
+    "PS Vita": [
+      "Uncharted: Golden Abyss",
+      "LittleBigPlanet PS Vita",
+      "Killzone: Mercenary"
+    ]
+  },
+  "Sega": {
+    "Megadrive": [
+      "Sonic the Hedgehog",
+      "Sonic the Hedgehog 2",
+      "Sonic the Hedgehog 3",
+      "Sonic & Knuckles",
+      "Streets of Rage",
+      "Golden Axe",
+      "Altered Beast",
+      "Shinobi",
+      "Phantasy Star"
+    ],
+    "Dreamcast": [
+      "Sonic Adventure",
+      "Sonic Adventure 2",
+      "Shenmue",
+      "Soulcalibur",
+      "Virtua Tennis",
+      "Crazy Taxi",
+      "Jet Set Radio"
+    ],
+    "Sega Master System": [
+      "Sonic the Hedgehog",
+      "Alex Kidd",
+      "Phantasy Star",
+      "Wonder Boy"
+    ]
+  },
+  "Microsoft": {
+    "XBOX": [
+      "Halo",
+      "Halo 2",
+      "Forza Motorsport",
+      "Fable",
+      "Gears of War",
+      "Project Gotham Racing"
+    ],
+    "XBOX360": [
+      "Halo 3",
+      "Halo: Reach",
+      "Gears of War",
+      "Gears of War 2",
+      "Gears of War 3",
+      "Forza Motorsport 3",
+      "Forza Motorsport 4",
+      "Fable II",
+      "Fable III"
+    ]
+  },
+  "PC": {
+    "Windows": [
+      "The Sims",
+      "World of Warcraft",
+      "Counter-Strike",
+      "Half-Life",
+      "Half-Life 2",
+      "Doom",
+      "Quake",
+      "Warcraft",
+      "StarCraft",
+      "Diablo",
+      "Diablo II",
+      "Age of Empires",
+      "Command & Conquer"
+    ]
+  }
+}
+

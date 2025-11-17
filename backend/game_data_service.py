@@ -1,6 +1,7 @@
 """
 Game data service for fetching game information and images
 Uses RAWG API as primary source with caching
+Supports TheGamesDB as fallback for retro games
 """
 import requests
 import os
@@ -74,19 +75,39 @@ class GameDataService:
         game_dir.mkdir(parents=True, exist_ok=True)
         return game_dir
     
-    def _get_existing_images(self, game_title: str) -> List[str]:
-        """Get list of existing cached images for a game"""
+    def _get_existing_images(self, game_title: str) -> Dict[str, List[str]]:
+        """Get list of existing cached images for a game, categorized by type
+        
+        Returns:
+            Dict with 'cover' and 'screenshots' keys containing lists of image paths
+        """
         game_dir = self._get_game_images_dir(game_title)
         if not game_dir.exists():
-            return []
+            return {"cover": [], "screenshots": []}
         
         image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-        images = []
-        for file in game_dir.iterdir():
-            if file.suffix.lower() in image_extensions:
-                images.append(str(file))
+        cover_images = []
+        screenshot_images = []
         
-        return sorted(images)
+        for file in game_dir.iterdir():
+            if file.suffix.lower() not in image_extensions:
+                continue
+            
+            filename = file.name.lower()
+            # Prioritize cover/boxart images
+            if any(keyword in filename for keyword in ['cover', 'boxart', 'background', 'poster', 'artwork']):
+                cover_images.append(str(file))
+            else:
+                screenshot_images.append(str(file))
+        
+        # Sort: cover images first, then screenshots
+        cover_images = sorted(cover_images)
+        screenshot_images = sorted(screenshot_images)
+        
+        return {
+            "cover": cover_images,
+            "screenshots": screenshot_images
+        }
     
     def _download_image(self, url: str, save_path: Path) -> bool:
         """Download an image from URL"""
@@ -186,64 +207,287 @@ class GameDataService:
             return None
     
     def get_game_description(self, game_title: str, console: Optional[str] = None) -> str:
-        """Get game description from RAWG API or cache"""
-        # Check cache first
+        """Get game description from cache only (no runtime fetching)
+        
+        Returns a 1-2 paragraph description (4-8 sentences) about the game.
+        Use fetch_game_description() to download and cache descriptions.
+        """
+        # Only read from cache - no runtime fetching
         if game_title in self.descriptions:
-            return self.descriptions[game_title]
+            cached_desc = self.descriptions[game_title]
+            # Check if it's a generic fallback description
+            fallback_phrases = [
+                "egy játék a",
+                "egyedi játékmenettel",
+                "izgalmas kihívásokkal",
+                "retro játékok szerelmeseinek"
+            ]
+            is_fallback = any(phrase in cached_desc.lower() for phrase in fallback_phrases)
+            
+            # Only use cache if it's substantial AND not a fallback
+            if len(cached_desc) > 100 and not is_fallback:
+                return cached_desc
         
-        # Try RAWG API
-        game_data = self._search_game_rawg(game_title, console)
-        if game_data:
-            # Get full details
-            game_id = game_data.get('id')
-            if game_id:
-                details = self._get_game_details_rawg(game_id)
-                if details:
-                    description = details.get('description_raw') or details.get('description', '')
-                    if description:
-                        # Clean up HTML tags if present
-                        import re
-                        description = re.sub(r'<[^>]+>', '', description)
-                        # Take first 3 sentences
-                        sentences = description.split('.')[:3]
-                        description = '. '.join(s for s in sentences if s.strip()).strip()
-                        if description and not description.endswith('.'):
-                            description += '.'
-                        
-                        self.descriptions[game_title] = description
-                        self._save_descriptions()
-                        return description
+        # Return empty string if not in cache (frontend can handle this)
+        return ""
+    
+    def fetch_game_description(self, game_title: str, console: Optional[str] = None) -> str:
+        """Fetch game description from APIs and cache it (for use in scripts, not runtime)
         
-        # Fallback description
-        description = f"{game_title} egy játék a {console} platformon." if console else f"{game_title} egy játék."
+        Returns a 1-2 paragraph description (4-8 sentences) about the game.
+        """
+        # Try RAWG API first (only if API key is available)
+        # If no API key, skip directly to TheGamesDB
+        if not self.api_key:
+            print("RAWG API key not set, using TheGamesDB fallback...")
+            rawg_success = False
+        else:
+            rawg_success = False
+            try:
+                game_data = self._search_game_rawg(game_title, console)
+                if game_data:
+                    # Get full details
+                    game_id = game_data.get('id')
+                    if game_id:
+                        details = self._get_game_details_rawg(game_id)
+                        if details:
+                            description = details.get('description_raw') or details.get('description', '')
+                            if description and len(description.strip()) > 50:  # At least some content
+                                # Clean up HTML tags if present
+                                import re
+                                description = re.sub(r'<[^>]+>', '', description)
+                                
+                                # Remove extra whitespace and newlines
+                                description = re.sub(r'\s+', ' ', description).strip()
+                                
+                                # Split into sentences
+                                # Handle common sentence endings
+                                sentence_endings = r'[.!?]+'
+                                sentences = re.split(sentence_endings, description)
+                                sentences = [s.strip() for s in sentences if s.strip()]
+                                
+                                # Target: 1-2 paragraphs = 4-8 sentences
+                                # First paragraph: 3-4 sentences (introduction, gameplay overview)
+                                # Second paragraph: 2-4 sentences (story, features, or additional details)
+                                target_sentences = min(len(sentences), 8)
+                                
+                                if target_sentences >= 4:
+                                    # Take first 4-8 sentences
+                                    selected_sentences = sentences[:target_sentences]
+                                    
+                                    # Try to create 2 paragraphs if we have enough sentences
+                                    if len(selected_sentences) >= 6:
+                                        # First paragraph: first 3-4 sentences
+                                        first_para = '. '.join(selected_sentences[:4]) + '.'
+                                        # Second paragraph: remaining sentences
+                                        second_para = '. '.join(selected_sentences[4:]) + '.'
+                                        description = f"{first_para}\n\n{second_para}"
+                                    else:
+                                        # Single paragraph with 4-5 sentences
+                                        description = '. '.join(selected_sentences) + '.'
+                                else:
+                                    # If we have fewer sentences, use what we have
+                                    description = '. '.join(sentences) + '.'
+                                
+                                # Ensure description ends properly
+                                if description and not description.endswith('.'):
+                                    description += '.'
+                                
+                                # Only cache if description is substantial
+                                if len(description) > 100:
+                                    self.descriptions[game_title] = description
+                                    self._save_descriptions()
+                                    rawg_success = True
+                                    return description
+            except Exception as e:
+                print(f"Error fetching description from RAWG API: {e}")
+                rawg_success = False
+        
+        # Fallback: Try TheGamesDB if RAWG failed, didn't return a good description, or no API key
+        if not rawg_success:
+            try:
+                from thegamesdb_service import TheGamesDBService
+                tgdb_service = TheGamesDBService()
+                tgdb_description = tgdb_service.get_game_description(game_title, console)
+                
+                if tgdb_description and len(tgdb_description) > 100:
+                    # Cache the description
+                    self.descriptions[game_title] = tgdb_description
+                    self._save_descriptions()
+                    print(f"✓ Got description from TheGamesDB fallback")
+                    return tgdb_description
+                else:
+                    print(f"⚠ TheGamesDB fallback didn't return a good description")
+            except Exception as e:
+                print(f"Error using TheGamesDB fallback for description: {e}")
+        
+        # Final fallback: Try to create a better fallback description
+        if console:
+            description = f"{game_title} egy játék a {console} platformon. Ez a játék egyedi játékmenettel és izgalmas kihívásokkal rendelkezik, amelyek a retro játékok szerelmeseinek szólnak."
+        else:
+            description = f"{game_title} egy érdekes és egyedi játék, amely érdemes lehet kipróbálni."
+        
         self.descriptions[game_title] = description
         self._save_descriptions()
         return description
     
-    def get_game_images(self, game_title: str, max_images: int = 4) -> List[str]:
-        """Get cached images for a game, fetching new ones if needed"""
-        # Ensure at least 3-4 images
-        if max_images < 3:
-            max_images = 3
+    def get_game_images(self, game_title: str, max_images: int = 5, console: Optional[str] = None, use_fallback: bool = True, force_refresh: bool = False) -> List[str]:
+        """Get cached images for a game (no runtime fetching)
         
+        Args:
+            game_title: Title of the game
+            max_images: Maximum number of images to return (default: 5, including 1 cover + 4 screenshots)
+            console: Console/platform name (unused in cache-only mode)
+            use_fallback: Unused in cache-only mode
+            force_refresh: Unused in cache-only mode
+        
+        Returns:
+            List of image paths: [cover_image, screenshot1, screenshot2, ...]
+        Use fetch_game_images() to download and cache images.
+        """
+        # Default: 1 cover + 4 screenshots = 5 images total
+        if max_images < 5:
+            max_images = 5
+        
+        # Get existing cached images only - no fetching
         existing = self._get_existing_images(game_title)
+        existing_cover = existing.get("cover", [])
+        existing_screenshots = existing.get("screenshots", [])
         
-        # If we already have enough images, return them
-        if len(existing) >= max_images:
-            return existing[:max_images]
-        
-        # Try to fetch from RAWG - try to get more to ensure we reach max_images
-        needed = max_images - len(existing)
-        # Request more than needed in case some downloads fail
-        new_images = self._fetch_images_from_rawg(game_title, max(needed, 4))
-        existing.extend(new_images)
-        
-        # Return up to max_images (but try to get as many as possible)
-        return existing[:max_images]
+        # Return what we have in cache
+        result = existing_cover[:1] + existing_screenshots[:max_images - 1]
+        return result[:max_images]
     
-    def _fetch_images_from_rawg(self, game_title: str, max_images: int = 4) -> List[str]:
-        """Fetch images from RAWG API for a game"""
-        game_data = self._search_game_rawg(game_title)
+    def fetch_game_images(self, game_title: str, max_images: int = 5, console: Optional[str] = None, use_fallback: bool = True, force_refresh: bool = False) -> List[str]:
+        """Fetch images for a game from APIs and cache them (for use in scripts, not runtime)
+        
+        Args:
+            game_title: Title of the game
+            max_images: Maximum number of images to return (default: 5, including 1 cover + 4 screenshots)
+            console: Console/platform name (for fallback API)
+            use_fallback: Whether to use TheGamesDB as fallback if RAWG fails
+            force_refresh: If True, force download even if images exist (default: False)
+        
+        Returns:
+            List of image paths: [cover_image, screenshot1, screenshot2, ...]
+        """
+        # Default: 1 cover + 4 screenshots = 5 images total
+        if max_images < 5:
+            max_images = 5
+        
+        # Get existing cached images
+        existing = self._get_existing_images(game_title)
+        existing_cover = existing.get("cover", [])
+        existing_screenshots = existing.get("screenshots", [])
+        
+        # Check if we have enough images (1 cover + at least 4 screenshots)
+        has_cover = len(existing_cover) > 0
+        has_enough_screenshots = len(existing_screenshots) >= (max_images - 1)
+        
+        # If we have enough cached images and not forcing refresh, return them
+        if not force_refresh and has_cover and has_enough_screenshots:
+            # Return: 1 cover + (max_images - 1) screenshots
+            result = existing_cover[:1] + existing_screenshots[:max_images - 1]
+            return result[:max_images]
+        
+        # We need to fetch images
+        print(f"Fetching images for {game_title} (cover: {not has_cover}, screenshots: {len(existing_screenshots)}/{max_images - 1})")
+        
+        # Try RAWG API first (only if API key is available)
+        # If no API key, skip directly to TheGamesDB
+        if not self.api_key:
+            print("RAWG API key not set, using TheGamesDB fallback for images...")
+            rawg_success = False
+            fetched_images = []
+        else:
+            rawg_success = False
+            fetched_images = []
+            try:
+                fetched_images = self._fetch_images_from_rawg(game_title, max_images, console)
+                # Consider RAWG successful if we got at least some images
+                if len(fetched_images) > 0:
+                    rawg_success = True
+            except Exception as e:
+                print(f"Error fetching images from RAWG API: {e}")
+                rawg_success = False
+        
+        # Categorize fetched images
+        fetched_cover = []
+        fetched_screenshots = []
+        
+        for img_path in fetched_images:
+            filename = Path(img_path).name.lower()
+            if any(keyword in filename for keyword in ['cover', 'boxart', 'background', 'poster', 'artwork']):
+                fetched_cover.append(img_path)
+            else:
+                fetched_screenshots.append(img_path)
+        
+        # Combine existing and fetched images
+        all_cover = existing_cover + fetched_cover
+        all_screenshots = existing_screenshots + fetched_screenshots
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_cover = []
+        for img in all_cover:
+            if img not in seen:
+                seen.add(img)
+                unique_cover.append(img)
+        
+        unique_screenshots = []
+        for img in all_screenshots:
+            if img not in seen:
+                seen.add(img)
+                unique_screenshots.append(img)
+        
+        # Only try TheGamesDB if RAWG failed or didn't provide enough images
+        if not rawg_success or (len(unique_cover) == 0 or len(unique_screenshots) < max_images - 1):
+            if use_fallback:
+                try:
+                    from thegamesdb_service import TheGamesDBService
+                    tgdb_service = TheGamesDBService()
+                    tgdb_images = tgdb_service.get_game_images(
+                        game_title, 
+                        console, 
+                        max(max_images - len(unique_screenshots), 1)
+                    )
+                    
+                    if tgdb_images:
+                        print(f"✓ Got {len(tgdb_images)} images from TheGamesDB fallback")
+                    
+                    # Categorize TheGamesDB images
+                    for img_path in tgdb_images:
+                        filename = Path(img_path).name.lower()
+                        if img_path not in seen:
+                            seen.add(img_path)
+                            if any(keyword in filename for keyword in ['cover', 'boxart', 'background']):
+                                if len(unique_cover) == 0:
+                                    unique_cover.append(img_path)
+                            else:
+                                unique_screenshots.append(img_path)
+                except Exception as e:
+                    print(f"Error using TheGamesDB fallback: {e}")
+        
+        # Build result: 1 cover (if available) + screenshots
+        result = []
+        if unique_cover:
+            result.append(unique_cover[0])
+        result.extend(unique_screenshots[:max_images - len(result)])
+        
+        return result[:max_images]
+    
+    def _fetch_images_from_rawg(self, game_title: str, max_images: int = 5, console: Optional[str] = None) -> List[str]:
+        """Fetch images from RAWG API for a game
+        
+        Args:
+            game_title: Title of the game
+            max_images: Maximum number of images to fetch
+            console: Console/platform name for better matching
+        
+        Returns:
+            List of downloaded image paths (cover first, then screenshots)
+        """
+        game_data = self._search_game_rawg(game_title, console)
         if not game_data:
             return []
         
@@ -257,30 +501,43 @@ class GameDataService:
             return []
         
         game_dir = self._get_game_images_dir(game_title)
-        downloaded = []
+        downloaded_cover = []
+        downloaded_screenshots = []
         
-        # Get background image (box art/cover) - this is usually the best quality
+        # Priority 1: Get background image (box art/cover) - this is usually the best quality
         background_image = details.get('background_image')
         if background_image:
-            filename = f"background_{hashlib.md5(background_image.encode()).hexdigest()[:8]}.jpg"
+            filename = f"cover_background_{hashlib.md5(background_image.encode()).hexdigest()[:8]}.jpg"
             save_path = game_dir / filename
             if not save_path.exists():
                 if self._download_image(background_image, save_path):
-                    downloaded.append(str(save_path))
+                    downloaded_cover.append(str(save_path))
             else:
-                downloaded.append(str(save_path))
+                downloaded_cover.append(str(save_path))
         
-        # Get screenshots - try to get more than needed in case some fail
+        # Priority 2: Get additional cover images
+        additional_images = details.get('background_image_additional', None)
+        if additional_images and len(downloaded_cover) == 0:
+            filename = f"cover_additional_{hashlib.md5(additional_images.encode()).hexdigest()[:8]}.jpg"
+            save_path = game_dir / filename
+            if not save_path.exists():
+                if self._download_image(additional_images, save_path):
+                    downloaded_cover.append(str(save_path))
+            else:
+                downloaded_cover.append(str(save_path))
+        
+        # Priority 3: Get screenshots - try to get more than needed in case some fail
         screenshots = details.get('short_screenshots', [])
         if not screenshots:
             screenshots = details.get('screenshots', [])
         
-        # Try to download more screenshots than needed to ensure we get at least max_images
-        # Try up to max_images * 2 screenshots to account for failures
-        screenshots_to_try = min(len(screenshots), max(max_images * 2, 10))
+        # Try to download more screenshots than needed to ensure we get at least max_images - 1
+        # (we want 1 cover + (max_images - 1) screenshots)
+        screenshots_needed = max_images - 1
+        screenshots_to_try = min(len(screenshots), max(screenshots_needed * 2, 10))
         
         for screenshot in screenshots[:screenshots_to_try]:
-            if len(downloaded) >= max_images:
+            if len(downloaded_screenshots) >= screenshots_needed:
                 break
             
             image_url = screenshot.get('image') if isinstance(screenshot, dict) else screenshot
@@ -297,36 +554,34 @@ class GameDataService:
             
             # Skip if we already have this image
             if save_path.exists():
-                downloaded.append(str(save_path))
+                downloaded_screenshots.append(str(save_path))
                 continue
             
             # Try to download the image
             if self._download_image(image_url, save_path):
-                downloaded.append(str(save_path))
+                downloaded_screenshots.append(str(save_path))
         
-        # If we still don't have enough, try to get additional images
-        # Sometimes there are alternative image sources
-        if len(downloaded) < max_images:
-            # Try getting platform-specific images or additional screenshots
-            additional_images = details.get('background_image_additional', None)
-            if additional_images and len(downloaded) < max_images:
-                filename = f"background_additional_{hashlib.md5(additional_images.encode()).hexdigest()[:8]}.jpg"
-                save_path = game_dir / filename
-                if not save_path.exists():
-                    if self._download_image(additional_images, save_path):
-                        downloaded.append(str(save_path))
-                else:
-                    downloaded.append(str(save_path))
-        
-        return downloaded[:max_images]  # Return at most max_images
+        # Combine: cover first, then screenshots
+        result = downloaded_cover[:1] + downloaded_screenshots[:max_images - len(downloaded_cover)]
+        return result[:max_images]
     
-    def get_game_info(self, game_title: str, console: Optional[str] = None, max_images: int = 4) -> Dict:
-        """Get complete game information (description + images)"""
-        # Ensure at least 3-4 images
-        if max_images < 3:
-            max_images = 3
+    def get_game_info(self, game_title: str, console: Optional[str] = None, max_images: int = 5) -> Dict:
+        """Get complete game information from cache only (description + images)
+        
+        Args:
+            game_title: Title of the game
+            console: Console/platform name
+            max_images: Maximum number of images (default: 5 = 1 cover + 4 screenshots)
+        
+        Returns:
+            Dict with title, description, images, and image_count
+        Use fetch_game_info() to download and cache game data.
+        """
+        # Default: 1 cover + 4 screenshots = 5 images total
+        if max_images < 5:
+            max_images = 5
         description = self.get_game_description(game_title, console)
-        images = self.get_game_images(game_title, max_images)
+        images = self.get_game_images(game_title, max_images, console=console, force_refresh=False)
         
         # Convert absolute paths to relative URLs
         # static_dir is backend/static, images_dir is backend/static/images/games
