@@ -15,6 +15,7 @@ import {
   Image,
 } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
+import { toSlug } from '../utils/slug'
 
 interface PlatformData {
   name: string
@@ -43,13 +44,36 @@ function ManufacturerDetail() {
 
   useEffect(() => {
     if (name) {
-      fetchManufacturerDetail(name)
+      // Slug-ból vissza kell állítani a manufacturer nevet
+      // Próbáljuk meg betölteni az összes manufacturer-t és megtalálni a megfelelőt
+      fetchManufacturerBySlug(name)
     }
   }, [name])
 
+  const fetchManufacturerBySlug = async (slug: string) => {
+    try {
+      // Get all manufacturers and find the one matching the slug
+      const manufacturersResponse = await fetch('http://localhost:8000/manufacturers')
+      const manufacturersData = await manufacturersResponse.json()
+      
+      const manufacturer = manufacturersData.manufacturers.find((mfr: any) => 
+        toSlug(mfr.name) === slug
+      )
+      
+      if (manufacturer) {
+        await fetchManufacturerDetail(manufacturer.name)
+      } else {
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Error fetching manufacturer by slug:', error)
+      setLoading(false)
+    }
+  }
+
   const fetchManufacturerDetail = async (mfrName: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/manufacturer/${mfrName}`)
+      const response = await fetch(`http://localhost:8000/manufacturer/${encodeURIComponent(mfrName)}`)
       const data = await response.json()
       setData(data)
       
@@ -131,7 +155,7 @@ function ManufacturerDetail() {
 
   const items = [
     { title: 'Gyártók', href: '/manufacturers' },
-    { title: data.name, href: '#' },
+    { title: data.name, href: `/manufacturer/${toSlug(data.name)}` },
   ].map((item, index) => (
     <Anchor key={index} onClick={() => navigate(item.href)}>
       {item.title}
@@ -153,7 +177,7 @@ function ManufacturerDetail() {
         {platforms.map((platform) => (
           <Grid.Col key={platform.name} span={{ base: 12, md: 6, lg: 4 }}>
             <Anchor
-              onClick={() => navigate(`/manufacturer/${data.name}/${platform.name}`)}
+              onClick={() => navigate(`/manufacturer/${toSlug(data.name)}/${toSlug(platform.name)}`)}
               underline="never"
             >
               <Card 

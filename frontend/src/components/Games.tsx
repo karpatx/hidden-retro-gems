@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   TextInput,
   Select,
@@ -10,7 +11,9 @@ import {
   Badge,
   Text,
   LoadingOverlay,
+  Anchor,
 } from '@mantine/core'
+import { toSlug } from '../utils/slug'
 
 interface Game {
   title: string
@@ -20,6 +23,7 @@ interface Game {
 }
 
 function Games() {
+  const navigate = useNavigate()
   const [games, setGames] = useState<Game[]>([])
   const [filteredGames, setFilteredGames] = useState<Game[]>([])
   const [manufacturers, setManufacturers] = useState<string[]>([])
@@ -97,8 +101,19 @@ function Games() {
   }
 
   const rows = filteredGames.map((game, index) => (
-    <Table.Tr key={index}>
-      <Table.Td>{game.title}</Table.Td>
+    <Table.Tr key={index} style={{ cursor: 'pointer' }} onClick={() => navigate(`/manufacturer/${toSlug(game.manufacturer)}/${toSlug(game.console)}/game/${toSlug(game.title)}`)}>
+      <Table.Td>
+        <Anchor
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/manufacturer/${toSlug(game.manufacturer)}/${toSlug(game.console)}/game/${toSlug(game.title)}`)
+          }}
+          underline="never"
+          fw={500}
+        >
+          {game.title}
+        </Anchor>
+      </Table.Td>
       <Table.Td>
         <Badge variant="light" color="blue">
           {game.manufacturer}

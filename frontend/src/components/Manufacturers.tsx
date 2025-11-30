@@ -12,6 +12,7 @@ import {
   Anchor,
 } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
+import { toSlug } from '../utils/slug'
 
 interface Manufacturer {
   name: string
@@ -68,7 +69,7 @@ function Manufacturers() {
           {manufacturers.map((mfr) => (
             <Grid.Col key={mfr.name} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
               <Anchor
-                onClick={() => navigate(`/manufacturer/${mfr.name}`)}
+                onClick={() => navigate(`/manufacturer/${toSlug(mfr.name)}`)}
                 underline="never"
               >
                 <Card

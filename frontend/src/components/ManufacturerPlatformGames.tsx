@@ -14,6 +14,7 @@ import {
   Grid,
   Image,
 } from '@mantine/core'
+import { toSlug } from '../utils/slug'
 
 interface Game {
   title: string
@@ -41,13 +42,43 @@ function ManufacturerPlatformGames() {
 
   useEffect(() => {
     if (name && platform) {
-      fetchGames(name, platform)
+      fetchGamesBySlug(name, platform)
     }
   }, [name, platform])
 
+  const fetchGamesBySlug = async (mfrSlug: string, platformSlug: string) => {
+    try {
+      // Get all manufacturers and find the one matching the slug
+      const manufacturersResponse = await fetch('http://localhost:8000/manufacturers')
+      const manufacturersData = await manufacturersResponse.json()
+      
+      const manufacturer = manufacturersData.manufacturers.find((mfr: any) => 
+        toSlug(mfr.name) === mfrSlug
+      )
+      
+      if (manufacturer) {
+        // Find platform matching the slug
+        const platform = manufacturer.platforms.find((plt: string) => 
+          toSlug(plt) === platformSlug
+        )
+        
+        if (platform) {
+          await fetchGames(manufacturer.name, platform)
+        } else {
+          setLoading(false)
+        }
+      } else {
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Error fetching games by slug:', error)
+      setLoading(false)
+    }
+  }
+
   const fetchGames = async (mfrName: string, platformName: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/manufacturer/${mfrName}/${platformName}`)
+      const response = await fetch(`http://localhost:8000/manufacturer/${encodeURIComponent(mfrName)}/${encodeURIComponent(platformName)}`)
       const data = await response.json()
       setData(data)
       
@@ -123,7 +154,7 @@ function ManufacturerPlatformGames() {
 
   const items = [
     { title: 'Gyártók', href: '/manufacturers' },
-    { title: data.manufacturer, href: `/manufacturer/${data.manufacturer}` },
+    { title: data.manufacturer, href: `/manufacturer/${toSlug(data.manufacturer)}` },
     { title: data.platform, href: '#' },
   ].map((item, index) => (
     <Anchor key={index} onClick={() => navigate(item.href)}>
@@ -165,7 +196,7 @@ function ManufacturerPlatformGames() {
           {data.games.map((game, index) => (
             <Grid.Col key={index} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
               <Anchor
-                onClick={() => navigate(`/game/${encodeURIComponent(game.title)}`)}
+                onClick={() => navigate(`/manufacturer/${toSlug(game.manufacturer)}/${toSlug(game.console)}/game/${toSlug(game.title)}`)}
                 underline="never"
               >
                 <Card
