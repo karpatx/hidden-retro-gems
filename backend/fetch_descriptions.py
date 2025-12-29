@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 from game_data_service import GameDataService
 
-def load_games_from_txt(games_file: Path):
-    """Load games from games.txt file"""
+def load_games_from_tsv(games_file: Path):
+    """Load games from games.tsv file"""
     games = []
     if not games_file.exists():
         return games
@@ -41,7 +41,7 @@ def main():
     # Get paths
     script_dir = Path(__file__).parent
     workspace_root = script_dir.parent
-    games_file = workspace_root / "games.txt"
+    games_file = workspace_root / "games.tsv"
     
     # Initialize service
     rawg_api_key = os.getenv("RAWG_API_KEY", "")
@@ -52,8 +52,8 @@ def main():
     service = GameDataService(api_key=rawg_api_key)
     
     # Load games
-    games = load_games_from_txt(games_file)
-    print(f"Loaded {len(games)} games from games.txt")
+    games = load_games_from_tsv(games_file)
+    print(f"Loaded {len(games)} games from games.tsv")
     
     # Load existing descriptions
     existing_descriptions = service.descriptions

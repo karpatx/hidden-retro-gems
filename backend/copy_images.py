@@ -19,8 +19,8 @@ def normalize_title(title: str) -> str:
     normalized = re.sub(r'\s+', ' ', normalized).strip()
     return normalized
 
-def load_games_from_txt(games_file: Path) -> List[Dict]:
-    """Load games from games.txt file"""
+def load_games_from_tsv(games_file: Path) -> List[Dict]:
+    """Load games from games.tsv file"""
     games = []
     if not games_file.exists():
         return games
@@ -49,7 +49,7 @@ def load_games_from_txt(games_file: Path) -> List[Dict]:
     return games
 
 def find_matching_game(game_title: str, console: str, games_list: List[Dict]) -> Optional[Dict]:
-    """Find matching game in games.txt by title and console"""
+    """Find matching game in games.tsv by title and console"""
     normalized_title = normalize_title(game_title)
     
     for game in games_list:
@@ -112,9 +112,9 @@ def copy_game_images(roms_data_file: Path, source_images_dir: Path, target_games
     """Copy game images from roms_crawler/images to backend/static/images/games/"""
     print("\nCopying game images...")
     
-    # Load games from games.txt
-    games_list = load_games_from_txt(games_file)
-    print(f"Loaded {len(games_list)} games from games.txt")
+    # Load games from games.tsv
+    games_list = load_games_from_tsv(games_file)
+    print(f"Loaded {len(games_list)} games from games.tsv")
     
     # Create a mapping of normalized titles to game objects
     games_map: Dict[str, Dict] = {}
@@ -151,11 +151,11 @@ def copy_game_images(roms_data_file: Path, source_images_dir: Path, target_games
             if not source_path.exists():
                 continue
             
-            # Try to find matching game in games.txt
+            # Try to find matching game in games.tsv
             matching_game = find_matching_game(game_title, system_name, games_list)
             
             if matching_game:
-                # Use the game title from games.txt for directory name
+                # Use the game title from games.tsv for directory name
                 game_dir_name = sanitize_filename(matching_game["title"])
                 game_dir = target_games_dir / game_dir_name
                 game_dir.mkdir(parents=True, exist_ok=True)
@@ -172,9 +172,9 @@ def copy_game_images(roms_data_file: Path, source_images_dir: Path, target_games
             else:
                 games_not_found += 1
                 if games_not_found <= 10:  # Print first 10 not found
-                    print(f"  Game not found in games.txt: {game_title} ({system_name})")
+                    print(f"  Game not found in games.tsv: {game_title} ({system_name})")
     
-    print(f"\nGame images: {games_copied} copied, {games_skipped} already existed, {games_not_found} not found in games.txt")
+    print(f"\nGame images: {games_copied} copied, {games_skipped} already existed, {games_not_found} not found in games.tsv")
     return games_copied
 
 def main():
@@ -185,7 +185,7 @@ def main():
     
     roms_data_file = roms_crawler_dir / "roms_data.json"
     source_images_dir = roms_crawler_dir / "images"
-    games_file = workspace_root / "games.txt"
+    games_file = workspace_root / "games.tsv"
     
     target_systems_dir = script_dir / "static" / "images" / "systems"
     target_games_dir = script_dir / "static" / "images" / "games"

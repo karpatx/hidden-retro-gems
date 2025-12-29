@@ -52,46 +52,48 @@ async def startup_event():
 rawg_api_key = os.getenv("RAWG_API_KEY", "")
 game_data_service = GameDataService(api_key=rawg_api_key)
 
-# Load trivial games data
-trivial_games_file = Path(__file__).parent / "game_data" / "trivial_games.json"
-trivial_games: Dict[str, Dict[str, List[str]]] = {}
-if trivial_games_file.exists():
-    with open(trivial_games_file, "r", encoding="utf-8") as f:
-        trivial_games = json.load(f)
+# Load trivial games data from no_brainers.tsv
+no_brainers_file = Path(__file__).parent.parent / "no_brainers.tsv"
+no_brainers_keywords: List[str] = []
+
+def reload_no_brainers():
+    """Reload no_brainers keywords from file"""
+    global no_brainers_keywords
+    if no_brainers_file.exists():
+        with open(no_brainers_file, "r", encoding="utf-8") as f:
+            no_brainers_keywords = [line.strip().lower() for line in f.readlines() if line.strip()]
+    else:
+        no_brainers_keywords = []
+    return len(no_brainers_keywords)
+
+# Initial load
+reload_no_brainers()
 
 def is_trivial_game(title: str, manufacturer: str, console: str) -> bool:
-    """Check if a game is trivial (mainstream/popular) for its platform"""
-    if manufacturer not in trivial_games:
-        return False
-    
-    platform_games = trivial_games[manufacturer].get(console, [])
-    if not platform_games:
+    """Check if a game is trivial (mainstream/popular) by checking if title contains any no_brainers keywords"""
+    if not no_brainers_keywords:
         return False
     
     title_lower = title.lower().strip()
     title_normalized = "".join(c if c.isalnum() or c.isspace() else " " for c in title_lower)
-    title_words = set(word for word in title_normalized.split() if len(word) > 2)
     
-    for trivial_title in platform_games:
-        trivial_lower = trivial_title.lower().strip()
-        trivial_normalized = "".join(c if c.isalnum() or c.isspace() else " " for c in trivial_lower)
-        trivial_words = set(word for word in trivial_normalized.split() if len(word) > 2)
+    for keyword in no_brainers_keywords:
+        keyword_normalized = "".join(c if c.isalnum() or c.isspace() else " " for c in keyword.lower().strip())
         
-        # Check exact match (normalized)
-        if title_normalized == trivial_normalized:
+        # Check if keyword is contained in title (normalized)
+        if keyword_normalized in title_normalized:
             return True
         
-        # Check if title contains trivial title or vice versa
-        if trivial_normalized in title_normalized or title_normalized in trivial_normalized:
-            return True
+        # Check individual words from keyword
+        keyword_words = keyword_normalized.split()
+        title_words = title_normalized.split()
         
-        # Check for significant word overlap (at least 2 words match)
-        common_words = title_words.intersection(trivial_words)
-        if len(common_words) >= 2:
-            return True
-        
-        # Check if key words match (for series like "Mario", "Kirby", "Metroid")
-        if len(trivial_words) == 1 and list(trivial_words)[0] in title_words:
+        # Check if all keyword words appear in title (for multi-word keywords like "donkey kong")
+        if len(keyword_words) > 1:
+            if all(kw in title_words for kw in keyword_words if len(kw) > 2):
+                return True
+        elif len(keyword_words) == 1 and keyword_words[0] in title_words:
+            # Single word match (like "mario", "zelda")
             return True
     
     return False
@@ -148,10 +150,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
-# Load games from CSV
+# Load games from TSV
 def load_games():
     games = []
-    games_file = os.path.join(os.path.dirname(__file__), "..", "games.txt")
+    games_file = os.path.join(os.path.dirname(__file__), "..", "games.tsv")
     
     if not os.path.exists(games_file):
         return games
@@ -440,7 +442,7 @@ async def get_game_thumbnail(title: str, console: Optional[str] = None):
 
 def get_system_image_filename(console_name: str) -> Optional[str]:
     """Convert console name to system image filename"""
-    # Mapping from games.txt console names to system image filenames
+    # Mapping from games.tsv console names to system image filenames
     console_mapping = {
         "N64": "system_Nintendo64.jpg",
         "Gamecube": "system_GameCube.jpg",
@@ -849,6 +851,31 @@ async def delete_game_tags(
     except Exception as e:
         print(f"Error deleting tags: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting tags: {str(e)}")
+
+@app.post("/admin/reload-games", tags=["admin"])
+async def reload_games_lists(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Reload games lists from games.tsv and no_brainers.tsv (admin only)"""
+    try:
+        # Reload no_brainers keywords
+        keywords_count = reload_no_brainers()
+        
+        # Test loading games to verify games.tsv is readable
+        games = load_games()
+        games_count = len(games)
+        
+        return {
+            "message": "Games lists reloaded successfully",
+            "games_count": games_count,
+            "no_brainers_keywords_count": keywords_count
+        }
+    except Exception as e:
+        print(f"Error reloading games lists: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reloading games lists: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn

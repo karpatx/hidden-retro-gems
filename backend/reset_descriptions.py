@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 from game_data_service import GameDataService
 
-def load_games_from_txt(games_file: Path):
-    """Load games from games.txt file"""
+def load_games_from_tsv(games_file: Path):
+    """Load games from games.tsv file"""
     games = []
     if not games_file.exists():
         return games
@@ -41,7 +41,7 @@ def main():
     # Get paths
     script_dir = Path(__file__).parent
     workspace_root = script_dir.parent
-    games_file = workspace_root / "games.txt"
+    games_file = workspace_root / "games.tsv"
     descriptions_file = script_dir / "game_data" / "descriptions.json"
     
     print("=" * 60)
@@ -80,8 +80,8 @@ def main():
     print("✓ Cache cleared")
     
     # Load games
-    games = load_games_from_txt(games_file)
-    print(f"\nLoaded {len(games)} games from games.txt")
+    games = load_games_from_tsv(games_file)
+    print(f"\nLoaded {len(games)} games from games.tsv")
     
     # Fetch descriptions
     print("\nStarting to fetch descriptions...")
